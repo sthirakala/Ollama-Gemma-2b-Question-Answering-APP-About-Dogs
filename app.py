@@ -1,37 +1,45 @@
 import os
-from dotenv import load_dotenv
 
-from langchain_community.llms import Ollama
+os.environ["USER_AGENT"] = "Mozilla/5.0 (compatible; LangChainBot/1.0; +https://yourwebsite.example)"
+os.environ["LANGCHAIN_TRACING_V2"] = "false"  
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+from dotenv import load_dotenv
+load_dotenv()
+
 import streamlit as st
+from langchain_ollama import OllamaLLM as Ollama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-load_dotenv()
+from langchain_community.document_loaders import WebBaseLoader 
+from langchain_text_splitters import RecursiveCharacterTextSplitter 
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS 
 
-## Langsmith Tracking
-os.environ["LANGCHAIN_API_KEY"]=os.getenv("LANGCHAIN_API_KEY")
-os.environ["LANGCHAIN_TRACING_V2"]="true"
-os.environ["LANGCHAIN_PROJECT"]=os.getenv("LANGCHAIN_PROJECT")
+loader = WebBaseLoader("https://www.natgeokids.com/uk/discover/animals/general-animals/dog-facts/")
+docs = loader.load()
 
-## Prompt Template
-prompt=ChatPromptTemplate.from_messages(
-    [
-        ("system","You are a helpful assistant. Please respond to the question asked"),
-        ("user","Question:{question}")
-    ]
-)
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+doc_chunks = text_splitter.split_documents(docs)
 
-## streamlit framework
-st.title("Langchain Demo With Gemma Model")
-input_text=st.text_input("What question you have in mind?")
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+vectorstoredb = FAISS.from_documents(doc_chunks, embeddings)
 
+prompt_template = ChatPromptTemplate.from_messages([
+    ("system", "Respond to the question clearly and helpfully."),
+    ("user", "Question: {question}")
+])
 
-## Ollama Llama2 model
-llm=Ollama(model="gemma:2b")
-output_parser=StrOutputParser()
-chain=prompt|llm|output_parser
+llm = Ollama(model="gemma:2b")
+output_parser = StrOutputParser()
+chain = prompt_template | llm | output_parser
+
+st.title("Gemma:2b Question Answering App")
+input_text = st.text_input("Ask your question:")
 
 if input_text:
-    st.write(chain.invoke({"question":input_text}))
+    response = chain.invoke({"question": input_text})
+    st.write(response)
 
 
