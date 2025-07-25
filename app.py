@@ -35,7 +35,7 @@ llm = Ollama(model="gemma:2b")
 output_parser = StrOutputParser()
 chain = prompt_template | llm | output_parser
 
-st.title("Gemma:2b Question Answering App")
+st.title("Gemma:2b Question Answering App About Dogs")
 input_text = st.text_input("Ask your question:")
 
 if input_text:
